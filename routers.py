@@ -109,6 +109,7 @@ def generate_router(router_num, as_number, peer_links=None, gns_path=None, ibgp_
 
 # ---------------------------
 # Example usage: generate AS X routers
+# RAJOUTER GNS PATH
 # ---------------------------
 generate_router(1, AS_X, peer_links=[(2,1),(3,2)], ibgp_peers=[2,3])
 generate_router(2, AS_X, peer_links=[(1,1),(3,3),(4,4)], ibgp_peers=[1,3,4])
