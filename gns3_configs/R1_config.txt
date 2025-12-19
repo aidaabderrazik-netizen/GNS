@@ -1,0 +1,16 @@
+! Configuration pour R1
+configure terminal
+
+ipv6 unicast-routing
+
+ ipv6 router ospf 1
+ router-id 1.1.1.1
+exit
+
+interface GigabitEthernet1/0
+ipv6 enable
+
+ ipv6 ospf 1 area 0
+ ipv6 address 2001:1:1:1::1/64
+ no shutdown
+exit

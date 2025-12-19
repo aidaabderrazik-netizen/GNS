@@ -1,0 +1,50 @@
+
+{
+  "routers": [
+    {
+      "hostname": "R1",
+      "router_id": "1.1.1.1",
+      "gns3_path": "C:/Users/Mister Manu/GNS3/projects/GNS_Project/project-files/dynamips/d6a2b687-4d3e-46bb-bdf0-fafe4d5a8351/configs",
+      "interfaces": [
+        {
+          "name": "GigabitEthernet1/0",
+          "ipv6": "2001:1:1:1::1/64",
+          "pid": 1,
+          "ospf_area": 0
+        }
+      ]
+    },
+    {
+      "hostname": "R2",
+      "router_id": "2.2.2.2",
+      "gns3_path": "C:/Users/Mister Manu/GNS3/projects/GNS_Project/project-files/dynamips/23079457-e158-4ab4-8d4d-42f1a7350bd2/configs",
+      "interfaces": [
+        {
+          "name": "GigabitEthernet1/0",
+          "ipv6": "2001:1:1:1::2/64",
+          "pid": 1,
+          "ospf_area": 0
+        },
+        {
+          "name": "GigabitEthernet2/0",
+          "ipv6": "2001:2:2:2::1/64",
+          "pid": 1,
+          "ospf_area": 0
+        }
+      ]
+    },
+    {
+      "hostname": "R3",
+      "router_id": "3.3.3.3",
+      "gns3_path": "C:/Users/Mister Manu/GNS3/projects/GNS_Project/project-files/dynamips/fc183ae5-35a7-4169-9669-e67677f2823a/configs",
+      "interfaces": [
+        {
+          "name": "GigabitEthernet2/0",
+          "ipv6": "2001:2:2:2::2/64",
+          "pid": 1,
+          "ospf_area": 0
+        }
+      ]
+    }
+  ]
+}
