@@ -12,117 +12,129 @@ if os.path.exists(JSON_FILE):
 else:
     data = {}
 
-# AS numbers
 AS_X = 10
 AS_Y = 20
 
-# Define IGP based on AS
+
+# IGP mapping
 AS_IGP = {
     AS_X: "RIP",
     AS_Y: "OSPF"
 }
 
-def generate_router(router_num, as_number, peer_links=None, gns_path=None, ibgp_peers=None, ebgp_peers=None):
-    """
-    Generate router details automatically based on router number.
-    - router_num: integer, e.g., 4 for R4
-    - as_number: AS number
-    - peer_links: list of tuples (peer_num, link_num), e.g., [(5,6),(7,7)]
-    - gns_path: path to the GNS3 project
-    - ibgp_peers: list of router numbers for iBGP peers
-    - ebgp_peers: list of dicts [{"peer": peer_router_num, "peer_as": AS}]
-    """
-    # These next lines are used because [] are mutable defaults, 
-    # basically this leads to routers sharing the same list of 
-    # interfaces of bgp peers.
+link_counter = {AS_X: 1, AS_Y: 1, "EBGP": 1}  # track link IDs per AS/internal/ebgp
 
-    if peer_links is None:
-        peer_links = []
-    if gns_path is None:
-        gns_path = DEFAULT_GNS_PATH
-    if ibgp_peers is None:
-        ibgp_peers = []
-    if ebgp_peers is None:
-        ebgp_peers = []
+def generate_router(router_num, as_number,
+                    peer_links=None,
+                    ibgp_peers=None,
+                    ebgp_peers=None):
+    global link_counter
+
+    if peer_links is None: peer_links = []
+    if ibgp_peers is None: ibgp_peers = []
+    if ebgp_peers is None: ebgp_peers = []
 
     name = f"R{router_num}"
-    router_id_bgp = f"{1 if as_number == AS_X else 2}.{1}.{1}.{router_num}"
+    igp = AS_IGP.get(as_number, "RIP")
+    router_id_bgp = f"{1 if as_number == AS_X else 2}.1.1.{router_num}"
     loopback = f"2001:192:100:255::{router_num}/128"
-    igp = AS_IGP.get(as_number, "RIP")  # Default to RIP if AS unknown
 
-    # Check if router exists
-    if name in data:
-        router = data[name]
-        print(f"Router {name} already exists. Updating IGP and gns_path if needed...")
-        router["IGP"] = igp
-        router["gns_path"] = gns_path
-    else:
+    if name not in data:
         router = {
             "name": name,
             "as_number": as_number,
             "router_id_bgp": router_id_bgp,
             "loopback": loopback,
-            "IGP": igp,
-            "ospf_area": 0,
-            "gns_path": gns_path,
             "interfaces": [],
-            "iBGP_peers": [],
-            "eBGP_peers": []
+            "routing": {
+                "igp": igp,
+                "ibgp_peers": [],
+                "ebgp_peers": []
+            }
         }
+    else:
+        router = data[name]
+        router["routing"]["igp"] = igp
 
-    # Add interfaces, avoiding duplicates
-    for peer_num, link_num in peer_links:
+    # -------------------------
+    # Internal interfaces (iBGP / IGP)
+    # -------------------------
+    for peer_num, _ in peer_links:
         peer_name = f"R{peer_num}"
-        local_ip = f"2001:192:168:{link_num}::1/64"
-        peer_ip = f"2001:192:168:{link_num}::2/64"
+        subnet_id = link_counter[as_number]
+        link_counter[as_number] += 1
 
-        if any(iface["peer"] == peer_name for iface in router["interfaces"]):
+        if as_number == AS_X:
+            subnet = f"2001:192:168:{subnet_id}::"
+        else:  # AS_Y
+            subnet = f"2001:192:169:{subnet_id}::"
+
+        if any(i["peer"] == peer_name for i in router["interfaces"]):
             continue
 
         router["interfaces"].append({
             "peer": peer_name,
-            "local_ip": local_ip,
-            "peer_ip": peer_ip
+            "local_ip": f"{subnet}1/64",
+            "peer_ip": f"{subnet}2/64",
+            "type": "internal"
         })
 
-    # Add iBGP peers
-    for peer_num in ibgp_peers:
-        peer_name = f"R{peer_num}"
-        if peer_name not in router["iBGP_peers"]:
-            router["iBGP_peers"].append(peer_name)
+    # -------------------------
+    # iBGP
+    # -------------------------
+    for peer in ibgp_peers:
+        peer_name = f"R{peer}"
+        if peer_name not in router["routing"]["ibgp_peers"]:
+            router["routing"]["ibgp_peers"].append(peer_name)
 
-    # Add eBGP peers
+    # -------------------------
+    # eBGP
+    # -------------------------
     for peer in ebgp_peers:
         peer_name = f"R{peer['peer']}"
         peer_as = peer['peer_as']
-        if all(p["peer"] != peer_name for p in router["eBGP_peers"]):
-            router["eBGP_peers"].append({"peer": peer_name, "peer_as": peer_as})
 
-    # Save router back to dictionary
+        # Assign a unique eBGP subnet per link
+        subnet_id = link_counter["EBGP"]
+        link_counter["EBGP"] += 1
+        subnet = f"2001:192:170:{subnet_id}::"
+
+        if all(i.get("peer") != peer_name or i.get("type") != "ebgp" for i in router["interfaces"]):
+            router["interfaces"].append({
+                "peer": peer_name,
+                "local_ip": f"{subnet}1/64",
+                "peer_ip": f"{subnet}2/64",
+                "type": "ebgp"
+            })
+
+        if all(p["peer"] != peer_name for p in router["routing"]["ebgp_peers"]):
+            router["routing"]["ebgp_peers"].append({"peer": peer_name, "peer_as": peer_as, "protocol": "BGP"})
+
+    # -------------------------
+    # Save router
+    # -------------------------
     data[name] = router
-
-    # Save entire data to JSON
     with open(JSON_FILE, "w") as f:
         json.dump(list(data.values()), f, indent=4)
-    print(f"Router {name} processed successfully!\n")
-
 
 # ---------------------------
-# Example usage: generate AS X routers
-# RAJOUTER GNS PATH
+# AS X
 # ---------------------------
 generate_router(1, AS_X, peer_links=[(2,1),(3,2)], ibgp_peers=[2,3])
 generate_router(2, AS_X, peer_links=[(1,1),(3,3),(4,4)], ibgp_peers=[1,3,4])
 generate_router(3, AS_X, peer_links=[(1,2),(2,3),(5,5)], ibgp_peers=[1,2,5])
 generate_router(4, AS_X, peer_links=[(2,4),(5,6),(7,7)], ibgp_peers=[2,5,7])
 generate_router(5, AS_X, peer_links=[(3,5),(4,6),(6,8),(7,10)], ibgp_peers=[3,4,6,7])
-generate_router(6, AS_X, peer_links=[(4,9),(5,8)], ibgp_peers=[4,5])
-generate_router(7, AS_X, peer_links=[(4,7),(5,10)], ibgp_peers=[4,5])
-
-
+generate_router(6, AS_X, peer_links=[(4,9),(5,8)], ibgp_peers=[4,5], ebgp_peers=[{"peer": 9, "peer_as": AS_Y}])
+generate_router(7, AS_X, peer_links=[(4,7),(5,10)], ibgp_peers=[4,5], ebgp_peers=[{"peer": 8, "peer_as": AS_Y}])
 
 # ---------------------------
-# Example usage: generate AS Y routers
+# AS Y
 # ---------------------------
-generate_router(8, AS_Y, peer_links=[], ibgp_peers=[9,10,11,12,13,14])
-# Continue adding AS Y routers as needed...
+generate_router(8, AS_Y, peer_links=[(10,1),(13,2)], ibgp_peers=[10,13], ebgp_peers=[{"peer": 7, "peer_as": AS_X}])
+generate_router(9, AS_Y, peer_links=[(10,3),(13,4)], ibgp_peers=[10,13], ebgp_peers=[{"peer": 6, "peer_as": AS_X}])
+generate_router(10, AS_Y, peer_links=[(8,1),(9,3),(11,5),(12,6)], ibgp_peers=[8,9,11,12])
+generate_router(11, AS_Y, peer_links=[(10,5),(13,7)], ibgp_peers=[8,9,10,13])
+generate_router(12, AS_Y, peer_links=[(10,6),(13,8),(14,9)], ibgp_peers=[10,13,14])
+generate_router(13, AS_Y, peer_links=[(11,7),(12,8),(14,10)], ibgp_peers=[11,12,14])
+generate_router(14, AS_Y, peer_links=[(12,9),(13,10)], ibgp_peers=[12,13])
