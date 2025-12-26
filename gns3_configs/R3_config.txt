@@ -1,0 +1,16 @@
+! Configuration pour R3
+configure terminal
+
+ipv6 unicast-routing
+
+ ipv6 router ospf 1
+ router-id 3.3.3.3
+exit
+
+interface GigabitEthernet2/0
+ipv6 enable
+
+ ipv6 ospf 1 area 0
+ ipv6 address 2001:2:2:2::2/64
+ no shutdown
+exit
