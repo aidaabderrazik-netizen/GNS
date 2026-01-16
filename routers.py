@@ -11,9 +11,8 @@ link_counter = {AS_X: 1, AS_Y: 1, "EBGP": 1}
 internal_assignments = {}
 ebgp_assignments = {}
 
-def generate_router(router_num, as_number, peer_links=None, ibgp_peers=None, ebgp_peers=None):
+def generate_router(router_num, as_number, ibgp_peers=None, ebgp_peers=None):
     global link_counter
-    if peer_links is None: peer_links = []
     if ibgp_peers is None: ibgp_peers = []
     if ebgp_peers is None: ebgp_peers = []
 
@@ -36,9 +35,9 @@ def generate_router(router_num, as_number, peer_links=None, ibgp_peers=None, ebg
     }
 
     # --- Interfaces Internes ---
-    for peer_num, _ in peer_links:
-        peer_name = f"R{peer_num}"
-        link_key = tuple(sorted([name, peer_name]))
+    for peer in ibgp_peers:
+        peer_name = f"R{peer}"
+        link_key = tuple(sorted([name, f"R{peer}"]))
         if link_key not in internal_assignments:
             sid = link_counter[as_number]
             pref = "168" if as_number == AS_X else "169"
@@ -68,21 +67,21 @@ def generate_router(router_num, as_number, peer_links=None, ibgp_peers=None, ebg
     data[name] = router
 
 # --- Appels de configuration ---
-generate_router(1, AS_X, peer_links=[(2,1),(3,2)], ibgp_peers=[2,3])
-generate_router(2, AS_X, peer_links=[(1,1),(3,3),(4,4)], ibgp_peers=[1,3,4])
-generate_router(3, AS_X, peer_links=[(1,2),(2,3),(5,5)], ibgp_peers=[1,2,5])
-generate_router(4, AS_X, peer_links=[(2,4),(5,6),(7,7)], ibgp_peers=[2,5,7])
-generate_router(5, AS_X, peer_links=[(3,5),(4,6),(6,8),(7,10)], ibgp_peers=[3,4,6,7])
-generate_router(6, AS_X, peer_links=[(4,9),(5,8)], ibgp_peers=[4,5], ebgp_peers=[{"peer": 9, "peer_as": AS_Y}])
-generate_router(7, AS_X, peer_links=[(4,7),(5,10)], ibgp_peers=[4,5], ebgp_peers=[{"peer": 8, "peer_as": AS_Y}])
+generate_router(1, AS_X, ibgp_peers=[2,3])
+generate_router(2, AS_X, ibgp_peers=[1,3,4])
+generate_router(3, AS_X, ibgp_peers=[1,2,5])
+generate_router(4, AS_X, ibgp_peers=[2,5,7])
+generate_router(5, AS_X, ibgp_peers=[3,4,6,7])
+generate_router(6, AS_X, ibgp_peers=[4,5], ebgp_peers=[{"peer": 9, "peer_as": AS_Y}])
+generate_router(7, AS_X, ibgp_peers=[4,5], ebgp_peers=[{"peer": 8, "peer_as": AS_Y}])
 
-generate_router(8, AS_Y, peer_links=[(10,1),(13,2)], ibgp_peers=[10,13], ebgp_peers=[{"peer": 7, "peer_as": AS_X}])
-generate_router(9, AS_Y, peer_links=[(10,3),(13,4)], ibgp_peers=[10,13], ebgp_peers=[{"peer": 6, "peer_as": AS_X}])
-generate_router(10, AS_Y, peer_links=[(8,1),(9,3),(11,5),(12,6)], ibgp_peers=[8,9,11,12])
-generate_router(11, AS_Y, peer_links=[(10,5),(13,7)], ibgp_peers=[8,9,10,13])
-generate_router(12, AS_Y, peer_links=[(10,6),(13,8),(14,9)], ibgp_peers=[10,13,14])
-generate_router(13, AS_Y, peer_links=[(11,7),(12,8),(14,10)], ibgp_peers=[11,12,14])
-generate_router(14, AS_Y, peer_links=[(12,9),(13,10)], ibgp_peers=[12,13])
+generate_router(8, AS_Y, ibgp_peers=[10,11], ebgp_peers=[{"peer": 7, "peer_as": AS_X}])
+generate_router(9, AS_Y, ibgp_peers=[10,11], ebgp_peers=[{"peer": 6, "peer_as": AS_X}])
+generate_router(10, AS_Y, ibgp_peers=[8,9,11,12])
+generate_router(11, AS_Y, ibgp_peers=[8,9,10,13])
+generate_router(12, AS_Y, ibgp_peers=[10,13,14])
+generate_router(13, AS_Y, ibgp_peers=[11,12,14])
+generate_router(14, AS_Y, ibgp_peers=[12,13])
 
 with open(JSON_FILE, "w") as f:
     json.dump(list(data.values()), f, indent=4)

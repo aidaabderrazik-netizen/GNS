@@ -4,7 +4,7 @@ import os
 #OSPF_PID = 1
 
 # Charger le fichier JSON
-with open("intents.json") as f:
+with open("routeurs.json") as f:
     data = json.load(f)
 
 for router in data["routers"]:
@@ -38,12 +38,13 @@ for router in data["routers"]:
 
         # Interfaces
         for iface in router["interfaces"]:
-            f_out.write(f"interface {iface['name']}\n")
-            f_out.write(" no ip address\n")
-            f_out.write(" ipv6 enable\n")
-            f_out.write(f" ipv6 address {iface['ipv6']}\n")
-            f_out.write(" no shutdown\n")
-            f_out.write("exit\n\n")
+            for detail in iface:
+                f_out.write(f"interface {detail['name']}\n")
+                f_out.write(" no ip address\n")
+                f_out.write(" ipv6 enable\n")
+                f_out.write(f" ipv6 address {detail['ipv6']}\n")
+                f_out.write(" no shutdown\n")
+                f_out.write("exit\n\n")
 
         f_out.write("end\n")
     print(f"[OK] Config déployée pour {router['hostname']} → {startup_config}")
